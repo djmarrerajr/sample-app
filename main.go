@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"math/rand"
 	"net/http"
 	"os"
 	"time"
@@ -55,7 +56,7 @@ func timeHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func helloHandler(ctx context.Context, appCtx *shared.ApplicationContext, req any) any {
-	time.Sleep(500 * time.Millisecond)
+	time.Sleep(time.Duration(rand.Intn(500)) * time.Millisecond)
 	return "Hello World!"
 }
 

@@ -1,0 +1,13 @@
+CREATE USER IF NOT EXISTS dbuser WITH LOGIN PASSWORD 'dbpassword';
+
+DROP TABLE IF EXISTS bank.account;
+DROP DATABASE IF EXISTS bank;
+
+CREATE DATABASE bank;
+
+CREATE TABLE bank.account (
+    id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+    balance DECIMAL DEFAULT 0.00
+);
+
+GRANT ALL ON bank.* TO dbuser;
