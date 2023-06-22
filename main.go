@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/djmarrerajr/common-lib/app"
+	"github.com/djmarrerajr/common-lib/observability/traces"
 	"github.com/djmarrerajr/common-lib/shared"
 	"github.com/djmarrerajr/common-lib/utils"
 )
@@ -18,6 +19,8 @@ import (
 var (
 	cfgPath = flag.String("cfg", "./config", "path in which to find the .env files")
 )
+
+var someDB *Database
 
 type Greeting struct {
 	Name string `json:"name"  xml:"name"`
@@ -39,6 +42,8 @@ func main() {
 	if err != nil {
 		log.Fatalf("unable to instantiate application: %v", err)
 	}
+
+	someDB = &Database{appCtx: *app.AppContext}
 
 	if err = app.Run(); err != nil {
 		log.Fatalf("application terminated in error: %v", err)
@@ -67,7 +72,35 @@ func greetHandler(ctx context.Context, appCtx *shared.ApplicationContext, req an
 
 	rqst := req.(*Greeting)
 
+	someDB.PerformQuery(ctx, randomString(12))
+
+	time.Sleep(time.Duration(rand.Intn(500)) * time.Millisecond)
+
 	return HelloResponse{
 		Message: fmt.Sprintf("Hello %s!", rqst.Name),
 	}
+}
+
+type Database struct {
+	appCtx shared.ApplicationContext
+}
+
+func (d Database) PerformQuery(ctx context.Context, queryName string) {
+	span, _ := traces.StartChildSpan(ctx, "PerformQuery")
+	defer traces.FinishChildSpan(span)
+
+	span.SetTag("queryName", queryName)
+
+	time.Sleep(time.Duration(rand.Intn(500)) * time.Millisecond)
+}
+
+func randomString(n int) string {
+	var letters = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
+
+	s := make([]rune, n)
+	for i := range s {
+		s[i] = letters[rand.Intn(len(letters))]
+	}
+
+	return string(s)
 }
