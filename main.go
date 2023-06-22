@@ -20,6 +20,7 @@ var (
 
 type Greeting struct {
 	Name string `json:"name"  xml:"name"`
+	Age  int    `json:"age"   xml:"age"   validate:"numeric,gt=10"`
 }
 
 func main() {
@@ -54,13 +55,8 @@ func timeHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func helloHandler(ctx context.Context, appCtx *shared.ApplicationContext, req any) any {
-	type HelloResponse struct {
-		Message string
-	}
-
-	return HelloResponse{
-		Message: "Hello World!",
-	}
+	time.Sleep(500 * time.Millisecond)
+	return "Hello World!"
 }
 
 func greetHandler(ctx context.Context, appCtx *shared.ApplicationContext, req any) any {
