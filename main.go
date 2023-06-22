@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"flag"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -17,6 +18,10 @@ var (
 	cfgPath = flag.String("cfg", "./config", "path in which to find the .env files")
 )
 
+type Greeting struct {
+	Name string `json:"name"  xml:"name"`
+}
+
 func main() {
 	env, err := utils.LoadEnv(*cfgPath)
 	if err != nil {
@@ -27,6 +32,7 @@ func main() {
 		env,
 		app.WithRouteHandler("/time", timeHandler, http.MethodGet),
 		app.WithRequestHandler("/hello", helloHandler, nil, http.MethodGet),
+		app.WithRequestHandler("/greet", greetHandler, Greeting{}, http.MethodPost),
 	)
 	if err != nil {
 		log.Fatalf("unable to instantiate application: %v", err)
@@ -54,5 +60,17 @@ func helloHandler(ctx context.Context, appCtx *shared.ApplicationContext, req an
 
 	return HelloResponse{
 		Message: "Hello World!",
+	}
+}
+
+func greetHandler(ctx context.Context, appCtx *shared.ApplicationContext, req any) any {
+	type HelloResponse struct {
+		Message string
+	}
+
+	rqst := req.(*Greeting)
+
+	return HelloResponse{
+		Message: fmt.Sprintf("Hello %s!", rqst.Name),
 	}
 }
