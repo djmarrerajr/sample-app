@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/djmarrerajr/common-lib/app"
-	"github.com/djmarrerajr/common-lib/observability/traces"
+	"github.com/djmarrerajr/common-lib/observability/tracing"
 	"github.com/djmarrerajr/common-lib/shared"
 	"github.com/djmarrerajr/common-lib/utils"
 )
@@ -20,7 +20,11 @@ var (
 	cfgPath = flag.String("cfg", "./config", "path in which to find the .env files")
 )
 
-var someDB *Database
+var (
+	dbServer    *Database
+	emailServer *EmailServer
+	emailVendor *EmailVendor
+)
 
 type Greeting struct {
 	Name string `json:"name"  xml:"name"`
@@ -43,7 +47,9 @@ func main() {
 		log.Fatalf("unable to instantiate application: %v", err)
 	}
 
-	someDB = &Database{appCtx: *app.AppContext}
+	dbServer = &Database{appCtx: *app.AppContext}
+	emailServer = &EmailServer{appCtx: *app.AppContext}
+	emailVendor = &EmailVendor{appCtx: *app.AppContext}
 
 	if err = app.Run(); err != nil {
 		log.Fatalf("application terminated in error: %v", err)
@@ -60,25 +66,27 @@ func timeHandler(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte(time.Now().UTC().Format(time.RFC3339)))
 }
 
-func helloHandler(ctx context.Context, appCtx *shared.ApplicationContext, req any) any {
+func helloHandler(ctx context.Context, appCtx *shared.ApplicationContext, req any) (any, int) {
 	time.Sleep(time.Duration(rand.Intn(500)) * time.Millisecond)
-	return "Hello World!"
+	return "Hello World!", http.StatusOK
 }
 
-func greetHandler(ctx context.Context, appCtx *shared.ApplicationContext, req any) any {
+func greetHandler(ctx context.Context, appCtx *shared.ApplicationContext, req any) (any, int) {
 	type HelloResponse struct {
 		Message string
 	}
 
 	rqst := req.(*Greeting)
 
-	someDB.PerformQuery(ctx, randomString(12))
+	dbServer.PerformQuery(ctx, randomString(12))
+	time.Sleep(time.Duration(rand.Intn(500)) * time.Millisecond)
 
+	emailServer.SendEmail(ctx, rqst.Name)
 	time.Sleep(time.Duration(rand.Intn(500)) * time.Millisecond)
 
 	return HelloResponse{
 		Message: fmt.Sprintf("Hello %s!", rqst.Name),
-	}
+	}, http.StatusOK
 }
 
 type Database struct {
@@ -86,10 +94,38 @@ type Database struct {
 }
 
 func (d Database) PerformQuery(ctx context.Context, queryName string) {
-	span, _ := traces.StartChildSpan(ctx, "PerformQuery")
-	defer traces.FinishChildSpan(span)
+	span, _ := tracing.StartChildSpan(ctx, "PerformQuery")
+	defer tracing.FinishChildSpan(span)
 
 	span.SetTag("queryName", queryName)
+
+	time.Sleep(time.Duration(rand.Intn(500)) * time.Millisecond)
+}
+
+type EmailServer struct {
+	appCtx shared.ApplicationContext
+}
+
+func (e EmailServer) SendEmail(ctx context.Context, recipient string) {
+	span, parentCtx := tracing.StartChildSpan(ctx, "SendEmail")
+	defer tracing.FinishChildSpan(span)
+
+	emailVendor.SendEmail(parentCtx, recipient)
+
+	span.SetTag("recipient", recipient)
+
+	time.Sleep(time.Duration(rand.Intn(500)) * time.Millisecond)
+}
+
+type EmailVendor struct {
+	appCtx shared.ApplicationContext
+}
+
+func (e EmailVendor) SendEmail(ctx context.Context, recipient string) {
+	span, _ := tracing.StartChildSpan(ctx, "TransmitEmail")
+	defer tracing.FinishChildSpan(span)
+
+	span.SetTag("recipient", recipient)
 
 	time.Sleep(time.Duration(rand.Intn(500)) * time.Millisecond)
 }
